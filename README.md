@@ -1,16 +1,24 @@
-### Hi there 👋
+# Stashware  
 
-<!--
-**stashware/stashware** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+## What is Stashware
 
-Here are some ideas to get you started:
+Stashware it the most reliable, permanent and secure decentralized storage network with data encryption and deduplication. Let your data be with you forever with one click.  
+https://stashware.net/
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+# Getting Started  
+
+
+# Building from source  
+
+
+## Requirements  
+
+ - Golang 1.11+  
+ - SQLite3 headers  
+
+``` console
+$ git clone https://github.com/stashware/stashware.git  
+$ cd stashware  
+```
+
+You will then find the gzipped tarball at stashware-x.y.x.tgz  
