@@ -7,14 +7,12 @@ https://stashware.net/
 
 # Getting Started  
 
-
 # Building from source  
-
 
 ## Requirements  
 
- - Golang 1.11+  
- - SQLite3 headers  
+- Golang 1.11+  
+- SQLite3 headers  
 
 ``` console
 $ git clone https://github.com/stashware/stashware.git  
