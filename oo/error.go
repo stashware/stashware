@@ -65,31 +65,31 @@ func ErrStr(eno string) string {
 	case UNSUPPORTED:
 		return "Unsupported invocation"
 	default:
-		return "Unknown error"
+		return eno
 	}
 }
 
 type Error struct {
-	Eno string
-	Err error
+	Eno string `json:"eno,omitempty"`
+	Str string `json:"str,omitempty"`
 }
 
 func (e *Error) Error() string {
-	return e.Eno + ":" + ErrStr(e.Eno) + "; " + e.Err.Error()
+	return e.Eno + ":" + ErrStr(e.Eno) + "; " + e.Str
 }
 func (e *Error) Errno() string {
 	return e.Eno
 }
 
 func NewErrno(eno string, format ...interface{}) (e *Error) {
-	var Err error
+	var Str string
 	if len(format) > 0 {
 		ff, _ := format[0].(string)
-		Err = errors.New(fmt.Sprintf(ff, format[1:]...))
+		Str = errors.New(fmt.Sprintf(ff, format[1:]...)).Error()
 	} else {
-		Err = errors.New(eno)
+		Str = ErrStr(eno)
 	}
-	e = &Error{Eno: eno, Err: Err}
+	e = &Error{Eno: eno, Str: Str}
 	return
 }
 func NewError(format ...interface{}) (e *Error) {

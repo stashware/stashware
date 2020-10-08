@@ -42,7 +42,7 @@ type TbTransaction struct {
 
 // tb_wallet
 type TbWallet struct {
-	Id      int64  `db:"id"`
+	Id      int64  `db:"id" sqler:"skips"`
 	Address string `db:"address"`
 	LastTx  string `db:"last_tx"`
 	Balance int64  `db:"balance"`
@@ -56,6 +56,16 @@ type TbChain struct {
 	IsActive  int64  `db:"is_active"`
 }
 
+// tb_pool
+type TbPool struct {
+	Id          int64  `db:"id" sqler:"skips"`
+	TxId        string `db:"tx_id"`
+	FromAddress string `db:"from_address"`
+	Target      string `db:"target"`
+	LastTx      string `db:"last_tx"`
+	Ctime       string `db:"ctime" sqler:"skips"`
+}
+
 //
 // wrapper
 //
@@ -67,4 +77,9 @@ type FullBlock struct {
 type FullTx struct {
 	*TbTransaction
 	Data []byte
+}
+
+type ActiveBlock = struct {
+	Height    int64  `db:"height"`
+	IndepHash string `db:"indep_hash"`
 }

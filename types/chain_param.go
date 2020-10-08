@@ -18,7 +18,6 @@ const TARGET_SEC = 150
 
 const RETARGET_BLOCKS = 50
 
-const RETARGET_TOLERANCE = float64(0.1)
 const BLOCKS_PER_HOUR = int64(3600 / TARGET_SEC)
 const BLOCKS_PER_DAY = (BLOCKS_PER_HOUR * 24)
 const BLOCKS_PER_WEEK = (BLOCKS_PER_DAY * 7)
@@ -51,11 +50,14 @@ const TX_REWARD_RATE = float64(0.4)                             //(txbase+size)*
 
 const TX_SEND_WITHOUT_ASKING_SIZE = 1000
 
-const DNOT_MINE_DELTA_SEC = int64(BLOCKS_PER_DAY * TARGET_SEC * 2)
-
 const (
+	RETARGET_TOLERANCE         = float64(0.1)
 	DIFF_ADJUSTMENT_DOWN_LIMIT = float64(0.25)
 	DIFF_ADJUSTMENT_UP_LIMIT   = float64(2)
+
+	RETARGET_TOLERANCE_INT         = 1000  // *1e4
+	DIFF_ADJUSTMENT_DOWN_LIMIT_INT = 2500  // *1e4
+	DIFF_ADJUSTMENT_UP_LIMIT_INT   = 20000 // *1e4
 )
 
 const (
@@ -73,6 +75,15 @@ const (
 const (
 	MIN_TRUSTED_NODES = 6
 	MAX_TRUSTED_NODES = 12
+
+	MIN_PEERS = 1
+	MAX_PEERS = 32
+)
+
+const (
+	DEFAULT_SYNC_PORT = 3080
+	// DEFAULT_GATEWAY_PORT    = 2080
+	// DEFAULT_WEB_WALLET_PORT = 1080
 )
 
 func PecostGb(h int64) (pe_cost int64, nyear int64, cost_gby_now int64) {
@@ -120,9 +131,17 @@ func LockBlocks(h int64) (lock_blocks int64) {
 	if h <= STAGE_1_H {
 		lock_blocks = 0
 	} else if h <= STAGE_2_H {
+		// if h >= STAGE_1_H+STAGE_2_LOCKB { //max lock
 		lock_blocks = STAGE_2_LOCKB
+		// } else {
+		// 	lock_blocks = h - STAGE_1_H
+		// }
 	} else {
+		// if h >= STAGE_1_H+STAGE_3_LOCKB {
 		lock_blocks = STAGE_3_LOCKB
+		// } else {
+		// 	lock_blocks = h - STAGE_1_H
+		// }
 	}
 	return
 }

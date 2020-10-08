@@ -42,6 +42,8 @@ type WebSock struct {
 	write_count uint64
 	read_bytes  uint64
 	write_bytes uint64
+
+	is_client bool
 }
 
 //chmgr should be == nil
@@ -88,6 +90,8 @@ func InitWsClient(Scheme string, Host string, Path string, chmgr *ChannelManager
 	c.create_ts = time.Now().Unix()
 	c.recv_fn = recv_fn
 
+	c.is_client = true
+
 	go c.serializedSend()
 
 	return c, nil
@@ -123,10 +127,12 @@ func (c *WebSock) StartDial(chk_interval int64, max_reconnect int64) {
 			}
 			wconn, _, err := dialer.Dial(vurl.String(), http.Header{"Host": []string{vurl.Host}})
 			if err != nil {
+				StatChg("connect fail "+vurl.String(), 1)
 				if c.Ch.Chmgr.DebugFlag > 0 {
 					LogD("Failed to Dial %v, host: %s, err=%v", vurl, vurl.Host, err)
 				}
 			} else {
+				StatChg("connect succ "+vurl.String(), 1)
 				c.Ws = wconn
 				// LogD("Succeed Dial %v, host: %s", vurl, vurl.Host) // remove for cli
 
@@ -141,13 +147,17 @@ func (c *WebSock) StartDial(chk_interval int64, max_reconnect int64) {
 	}
 
 	for max_reconnect >= 0 {
+
 		checkfn(c)
 
 		select {
 		case <-c.Ch.IsClosed():
 			return
-		case <-time.After(time.Second * time.Duration(chk_interval)):
+		default:
+			time.Sleep(time.Duration(chk_interval) * time.Second)
+			// case <-time.After(time.Second * time.Duration(chk_interval)):
 		}
+
 	}
 }
 
@@ -204,6 +214,9 @@ func (c *WebSock) SetReadTimeout(read_timeo int64) {
 }
 func (c *WebSock) IsReady() bool {
 	return c.Ws != nil
+}
+func (c *WebSock) IsClient() bool {
+	return c.is_client
 }
 
 func (c *WebSock) RecvRequest() {
@@ -276,7 +289,7 @@ func (c *WebSock) RecvRequest() {
 			}
 			if err == nil && len(ret_d) > 0 {
 				if err = c.SendData(ret_d); err != nil {
-					LogW("Failed to send websocket err: %v", err)
+					LogW("Failed to send websocket %s err: %v", c.PeerAddr(), err)
 				}
 			}
 		}
@@ -296,20 +309,28 @@ func (c *WebSock) serializedSend() {
 		}
 	}()
 
+	t := time.NewTimer(1 * time.Second)
+	defer t.Stop()
+
+For:
 	for {
+		t.Stop()
+		t = time.NewTimer(1 * time.Second)
+
 		select {
 		case m, ok := <-c.Ch.RecvChan():
 			if !ok {
 				// StatChg("send notok", 1)
-				break
+				break For
 			}
 
 			if c.Ws == nil { //active connection
 				StatChg("active wait", 1)
-				<-time.After(time.Second * 1)
-				if err := c.Ch.PushMsg(m); err != nil {
-					LogW("Failed to send websock err:%v", err)
-				}
+				// <-time.After(time.Second * 1)
+				// time.Sleep(time.Second * 1)
+				// if err := c.Ch.PushMsg(m); err != nil {
+				// 	LogW("Failed to send %s -> %s err:%v", m, c.PeerAddr(), err)
+				// }
 				continue
 			}
 
@@ -327,7 +348,8 @@ func (c *WebSock) serializedSend() {
 			c.write_ts = time.Now().Unix()
 			c.write_count++
 			c.write_bytes += uint64(len(data))
-		case <-time.After(1 * time.Second): //Less accurate
+			// case <-time.After(1 * time.Second): //Less accurate
+		case <-t.C:
 			if c.interval_fn != nil && c.Ws != nil {
 				ms := time.Now().UnixNano() / 1e6
 				go c.interval_fn(c, ms)
@@ -390,6 +412,7 @@ func RecvRpcFn(c *WebSock, message []byte) (ret_data []byte, err error) {
 	//	LogD("req: %s rsp: %s err: %v", req_para, ret_data, err)
 	//}()
 
+	StatChg("recv "+rpcmsg.Cmd, 1)
 	retmsg, err := fn(ctx, rpcmsg)
 	if err == nil && retmsg != nil {
 		retmsg.Sess = nil
@@ -434,6 +457,11 @@ func (c *WebSock) RpcPush(rpcmsg *RpcMsg) (err error) {
 }
 
 func (c *WebSock) RpcRequest(rpcmsg *RpcMsg, wait_sec int64, pret interface{}) (err error) {
+	defer func() {
+		if errs := recover(); errs != nil {
+			LogW("recover RecvRequest %s. err=%v", c.ConnInfo(), errs)
+		}
+	}()
 	if c.Ws == nil {
 		return errors.New("not ready")
 	}
@@ -448,22 +476,26 @@ func (c *WebSock) RpcRequest(rpcmsg *RpcMsg, wait_sec int64, pret interface{}) (
 	s_sndmap.Store(rpcmsg.Chk, ch)
 	defer s_sndmap.Delete(rpcmsg.Chk)
 
+	StatChg("send "+rpcmsg.Cmd, 1)
 	// c.Ch.PushMsg(rpcmsg)
 	if err = c.RpcSend(rpcmsg); err != nil {
 		return
 	}
 
+	t := time.NewTimer(time.Second * time.Duration(wait_sec))
+	defer t.Stop()
+
 	select {
 	case rspmsg := <-ch:
 		// rspmsg.Chk = rpcmsg.Chk
-		if pret != nil {
+		if rspmsg.Err != nil {
+			err = NewError("%s", rspmsg.Err.Error())
+		} else if pret != nil {
 			err = jsoniter.Unmarshal(rspmsg.Para, pret)
 		}
-		if rspmsg.Err != nil {
-
-		}
 		return
-	case <-time.After(time.Second * time.Duration(wait_sec)):
+	// case x := <-time.After(time.Second * time.Duration(wait_sec)):
+	case <-t.C:
 		return errors.New("timeout")
 	}
 

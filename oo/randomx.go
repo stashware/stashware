@@ -11,13 +11,13 @@ type RandxVm struct {
 }
 
 func NewRandxVm(key []byte) (ret *RandxVm, err error) {
-	cache, err := randomx.AllocCache(randomx.FlagDefault)
+	cache, err := randomx.AllocCache(randomx.FlagDefault, randomx.FlagJIT)
 	if nil != err {
 		return
 	}
 	randomx.InitCache(cache, key)
 
-	dataset, err := randomx.AllocDataset(randomx.FlagDefault)
+	dataset, err := randomx.AllocDataset(randomx.FlagDefault, randomx.FlagJIT)
 	if nil != err {
 		return
 	}
